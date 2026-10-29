@@ -1,7 +1,7 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { describe, expect, it } from "vitest";
-import type { Principal, Progress } from "./engine.ts";
+import { EngineError, type Principal, type Progress } from "./engine.ts";
 import { createFakeEngine, type FakeEngine } from "./fake-engine.ts";
 import { createServer, SERVER_NAME } from "./server.ts";
 
@@ -83,7 +83,13 @@ describe("get-progress", () => {
 
     expect(result.isError).toBe(true);
     expect(result.content).toEqual([
-      { type: "text", text: "No authenticated principal is available." },
+      {
+        type: "text",
+        text: JSON.stringify({
+          code: "no-principal",
+          message: "No authenticated principal is available.",
+        }),
+      },
     ]);
     expect(engine.calls).toEqual([]);
   });
@@ -270,4 +276,82 @@ describe("get-progress engine errors", () => {
       expect(errorOf(result).code).toBe(code);
     },
   );
+
+  // Only error codes the adapter recognises are public; the rest are failures.
+  it("reports an engine error code it does not recognise as a generic failure", async () => {
+    const unrecognised = new EngineError(
+      "quota-exceeded" as never,
+      "tenant 4411 is over quota",
+    );
+    const client = await connect({
+      engine: createFakeEngine([], { throws: unrecognised }),
+      principal: ada,
+    });
+
+    const result = await getProgress(client);
+
+    expect(result.isError).toBe(true);
+    expect(errorOf(result)).toEqual({
+      code: "engine-failure",
+      message: "The learning engine could not answer.",
+    });
+    const wire = JSON.stringify(result);
+    expect(wire).not.toContain("quota-exceeded");
+    expect(wire).not.toContain("4411");
+  });
+
+  it("contains a thrown value that fails even to be classified", async () => {
+    // Checking its type throws, carrying a message of its own.
+    const hostile = new Proxy(
+      {},
+      {
+        getPrototypeOf() {
+          throw new Error("SECRET-from-classification");
+        },
+      },
+    );
+    const client = await connect({
+      engine: createFakeEngine([], { throws: hostile }),
+      principal: ada,
+    });
+
+    const result = await getProgress(client);
+
+    expect(result.isError).toBe(true);
+    expect(errorOf(result).code).toBe("engine-failure");
+    expect(JSON.stringify(result)).not.toContain("SECRET");
+  });
+
+  it.each([
+    [
+      "cannot be serialised",
+      {
+        competencyId: "graph-of-a-function",
+        toJSON() {
+          throw new Error("SECRET-from-serialisation");
+        },
+      },
+    ],
+    [
+      "does not match the progress shape",
+      { competencyId: "graph-of-a-function", status: 42, updatedAt: null },
+    ],
+  ])("reports a result that %s as a generic failure", async (_, result) => {
+    const client = await connect({
+      engine: createFakeEngine([
+        { principal: ada, progress: result as unknown as Progress },
+      ]),
+      principal: ada,
+    });
+
+    const response = await getProgress(client);
+
+    expect(response.isError).toBe(true);
+    expect(response.structuredContent).toBeUndefined();
+    expect(errorOf(response)).toEqual({
+      code: "engine-failure",
+      message: "The learning engine could not answer.",
+    });
+    expect(JSON.stringify(response)).not.toContain("SECRET");
+  });
 });

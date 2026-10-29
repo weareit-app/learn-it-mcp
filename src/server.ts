@@ -6,7 +6,6 @@ import {
   type EngineErrorCode,
   type LearningEngine,
   type Principal,
-  type Progress,
 } from "./engine.ts";
 
 export const SERVER_NAME = "learn-it-mcp";
@@ -31,6 +30,27 @@ function toolError(code: string, message: string) {
     ],
     isError: true,
   };
+}
+
+const engineFailure = () =>
+  toolError("engine-failure", "The learning engine could not answer.");
+
+// Turns anything the engine threw into a tool error. Only codes listed in
+// `engineErrorMessages` are public; everything else, including a value whose
+// inspection itself throws, is a generic failure. This is caught here, not by
+// the SDK, which would echo the thrown message.
+function engineErrorResult(error: unknown) {
+  try {
+    if (error instanceof EngineError) {
+      const code = error.code;
+      if (Object.hasOwn(engineErrorMessages, code)) {
+        return toolError(code, engineErrorMessages[code]);
+      }
+    }
+  } catch {
+    // Inspecting the thrown value failed: treat it as unexpected.
+  }
+  return engineFailure();
 }
 
 export type ServerOptions = {
@@ -65,30 +85,27 @@ export function createServer({ engine, principal }: ServerOptions): McpServer {
     },
     async ({ competencyId }) => {
       if (!principal) {
-        return {
-          content: [
-            { type: "text", text: "No authenticated principal is available." },
-          ],
-          isError: true,
-        };
-      }
-      let progress: Progress;
-      try {
-        progress = await engine.getProgress(principal, competencyId);
-      } catch (error) {
-        if (error instanceof EngineError) {
-          return toolError(error.code, engineErrorMessages[error.code]);
-        }
-        // Caught here, not by the SDK, which would echo the message.
         return toolError(
-          "engine-failure",
-          "The learning engine could not answer.",
+          "no-principal",
+          "No authenticated principal is available.",
         );
       }
-      return {
-        content: [{ type: "text", text: JSON.stringify(progress) }],
-        structuredContent: { ...progress },
-      };
+      try {
+        const progress = await engine.getProgress(principal, competencyId);
+        // Serialised and checked here, inside the guard: what the client gets
+        // is plain JSON data equal to the engine's result, or a failure.
+        const text = JSON.stringify(progress);
+        const structuredContent: unknown = JSON.parse(text);
+        if (!progressSchema.safeParse(structuredContent).success) {
+          return engineFailure();
+        }
+        return {
+          content: [{ type: "text", text }],
+          structuredContent: structuredContent as Record<string, unknown>,
+        };
+      } catch (error) {
+        return engineErrorResult(error);
+      }
     },
   );
   return server;

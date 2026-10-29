@@ -49,7 +49,13 @@ describe("stdio server", () => {
     });
     expect(refusal.isError).toBe(true);
     expect(refusal.content).toEqual([
-      { type: "text", text: "No authenticated principal is available." },
+      {
+        type: "text",
+        text: JSON.stringify({
+          code: "no-principal",
+          message: "No authenticated principal is available.",
+        }),
+      },
     ]);
     const pid = transport.pid;
     expect(pid).toBeTypeOf("number");
