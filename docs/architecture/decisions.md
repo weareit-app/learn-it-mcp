@@ -17,3 +17,4 @@ Decided when the repository was generated (see its first commit).
 ## Changes
 
 - 2026-10-28: Issues and specs move from local Markdown under `.scratch/` to GitHub Issues in `weareit-app/learn-it-mcp`, with GitHub's native sub-issues and blocking links. No issues had been filed locally, so nothing migrates. The five default triage labels are created on GitHub.
+- 2026-10-28: Naming. MCP tool names are kebab-case (`get-progress`), following most examples in the MCP TypeScript SDK. TypeScript functions, methods and tool input/output fields are camelCase (`getProgress`, `competencyId`), and TypeScript types are PascalCase (`LearningEngine`). A tool name is provisional until `@learn-it/contracts` publishes semantic operation identifiers, and then maps to one of them.
