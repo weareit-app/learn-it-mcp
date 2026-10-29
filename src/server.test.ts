@@ -88,6 +88,93 @@ describe("get-progress", () => {
     expect(engine.calls).toEqual([]);
   });
 
+  it("rejects a learnerId, so a caller cannot choose whose record it reads", async () => {
+    const engine = engineWithAdaRecord();
+    const client = await connect({ engine, principal: ada });
+
+    const result = await client.callTool({
+      name: "get-progress",
+      arguments: {
+        competencyId: "graph-of-a-function",
+        learnerId: "synthetic-learner-bea",
+      },
+    });
+
+    expect(result.isError).toBe(true);
+    expect(engine.calls).toEqual([]);
+  });
+
+  it.each([
+    [
+      "a principal override",
+      { principal: { subjectId: "synthetic-learner-bea" } },
+    ],
+    ["a subjectId", { subjectId: "synthetic-learner-bea" }],
+    ["an unrelated field", { verbose: true }],
+  ])("rejects %s, an undeclared field", async (_, extra) => {
+    const engine = engineWithAdaRecord();
+    const client = await connect({ engine, principal: ada });
+
+    const result = await client.callTool({
+      name: "get-progress",
+      arguments: { competencyId: "graph-of-a-function", ...extra },
+    });
+
+    expect(result.isError).toBe(true);
+    expect(engine.calls).toEqual([]);
+  });
+
+  it.each([
+    ["missing", {}],
+    ["empty", { competencyId: "" }],
+    ["not a string", { competencyId: 42 }],
+  ])("rejects a competencyId that is %s", async (_, args) => {
+    const engine = engineWithAdaRecord();
+    const client = await connect({ engine, principal: ada });
+
+    const result = await client.callTool({
+      name: "get-progress",
+      arguments: args,
+    });
+
+    expect(result.isError).toBe(true);
+    expect(engine.calls).toEqual([]);
+  });
+
+  // Principal propagation and session separation at the MCP seam only: this
+  // says nothing about host authentication or real storage isolation.
+  it("answers each server's client for that server's own principal", async () => {
+    const bea: Principal = { subjectId: "synthetic-learner-bea" };
+    const engine = createFakeEngine([
+      { principal: ada, progress: adaGraphProgress },
+      {
+        principal: bea,
+        progress: {
+          competencyId: "graph-of-a-function",
+          status: "another-engine-defined-status",
+          updatedAt: "2026-10-27T09:30:00.000Z",
+        },
+      },
+    ]);
+    const adaClient = await connect({ engine, principal: ada });
+    const beaClient = await connect({ engine, principal: bea });
+
+    const adaResult = await getProgress(adaClient);
+    const beaResult = await getProgress(beaClient);
+
+    expect(adaResult.structuredContent).toEqual({
+      competencyId: "graph-of-a-function",
+      status: "engine-defined-status",
+      updatedAt: "2026-10-28T12:00:00.000Z",
+    });
+    expect(beaResult.structuredContent).toEqual({
+      competencyId: "graph-of-a-function",
+      status: "another-engine-defined-status",
+      updatedAt: "2026-10-27T09:30:00.000Z",
+    });
+    expect(engine.calls.map((call) => call.principal)).toEqual([ada, bea]);
+  });
+
   it("is listed as a read-only, closed-world tool with input and output schemas", async () => {
     const client = await connect({ engine: engineWithAdaRecord() });
 

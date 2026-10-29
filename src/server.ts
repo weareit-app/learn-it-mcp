@@ -36,7 +36,9 @@ export function createServer({ engine, principal }: ServerOptions): McpServer {
       title: "Get Progress",
       description:
         "The learning engine's progress on one competency, for the learner this server acts for.",
-      inputSchema: { competencyId: z.string() },
+      // Strict: an undeclared field, such as a learner ID, is an error rather
+      // than silently dropped.
+      inputSchema: z.strictObject({ competencyId: z.string().min(1) }),
       outputSchema: progressShape,
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
