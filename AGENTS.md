@@ -37,7 +37,7 @@ A change is done when `pnpm check` passes, its tests cover the behaviour it adds
 
 ### Issue tracker
 
-Local Markdown files under `.scratch/`, until this repository uses GitHub Issues. See `docs/agents/issue-tracker.md`.
+GitHub Issues in `weareit-app/learn-it-mcp`, through the `gh` CLI. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 

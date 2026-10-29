@@ -2,7 +2,7 @@
 
 MCP adapter over the learn-it engine; no learning logic of its own.
 
-Status: a new skeleton. The stack and checks are in place; the real functionality is still to be built.
+Status: early. One learner tool, `get-progress`, runs over stdio against an in-memory fake engine; with no authenticated principal it refuses every call. The real learning engine (`learn-it`) is not integrated yet.
 
 ## Getting started
 
