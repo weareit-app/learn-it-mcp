@@ -39,7 +39,15 @@ describe("stdio server", () => {
     const client = new Client({ name: "smoke", version: "0.0.0" });
     await client.connect(transport);
     const { tools } = await client.listTools();
-    expect(tools.map((tool) => tool.name)).toContain("health");
+    expect(tools.map((tool) => tool.name)).toEqual(
+      expect.arrayContaining(["health", "get-progress"]),
+    );
+    // The stdio server binds no principal, so it reads no learner record.
+    const refusal = await client.callTool({
+      name: "get-progress",
+      arguments: { competencyId: "graph-of-a-function" },
+    });
+    expect(refusal.isError).toBe(true);
     const pid = transport.pid;
     expect(pid).toBeTypeOf("number");
     expect(networkSockets(pid!)).toEqual([]);

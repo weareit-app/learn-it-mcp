@@ -1,9 +1,24 @@
 // The MCP server: its tools, independent of any transport.
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod";
+import type { LearningEngine, Principal } from "./engine.ts";
 
 export const SERVER_NAME = "learn-it-mcp";
 
-export function createServer(): McpServer {
+// The output schema mirrors the placeholder `Progress` shape, field for field.
+const progressShape = {
+  competencyId: z.string(),
+  status: z.string(),
+  updatedAt: z.string(),
+};
+
+export type ServerOptions = {
+  engine: LearningEngine;
+  /** Set by the trusted host; no tool input can set or change it. */
+  principal?: Principal | undefined;
+};
+
+export function createServer({ engine, principal }: ServerOptions): McpServer {
   const server = new McpServer({ name: SERVER_NAME, version: "0.0.0" });
   server.registerTool(
     "health",
@@ -14,6 +29,32 @@ export function createServer(): McpServer {
     async () => ({
       content: [{ type: "text", text: `${SERVER_NAME} is running` }],
     }),
+  );
+  server.registerTool(
+    "get-progress",
+    {
+      title: "Get Progress",
+      description:
+        "The learning engine's progress on one competency, for the learner this server acts for.",
+      inputSchema: { competencyId: z.string() },
+      outputSchema: progressShape,
+      annotations: { readOnlyHint: true, openWorldHint: false },
+    },
+    async ({ competencyId }) => {
+      if (!principal) {
+        return {
+          content: [
+            { type: "text", text: "No authenticated principal is available." },
+          ],
+          isError: true,
+        };
+      }
+      const progress = await engine.getProgress(principal, competencyId);
+      return {
+        content: [{ type: "text", text: JSON.stringify(progress) }],
+        structuredContent: { ...progress },
+      };
+    },
   );
   return server;
 }
