@@ -12,7 +12,7 @@ const adaGraphProgress: Progress = {
   updatedAt: "2026-10-28T12:00:00.000Z",
 };
 
-function fakeEngine(): FakeEngine {
+function engineWithAdaRecord(): FakeEngine {
   return createFakeEngine([{ principal: ada, progress: adaGraphProgress }]);
 }
 
@@ -27,9 +27,13 @@ async function connect(options: {
   return client;
 }
 
+function getProgress(client: Client, competencyId = "graph-of-a-function") {
+  return client.callTool({ name: "get-progress", arguments: { competencyId } });
+}
+
 describe("createServer", () => {
   it("answers the health tool", async () => {
-    const client = await connect({ engine: fakeEngine() });
+    const client = await connect({ engine: engineWithAdaRecord() });
     const result = await client.callTool({ name: "health" });
     expect(result.content).toEqual([
       { type: "text", text: `${SERVER_NAME} is running` },
@@ -39,27 +43,27 @@ describe("createServer", () => {
 
 describe("get-progress", () => {
   it("asks the engine for the bound principal's progress on the competency", async () => {
-    const engine = fakeEngine();
+    const engine = engineWithAdaRecord();
     const client = await connect({ engine, principal: ada });
 
-    await client.callTool({
-      name: "get-progress",
-      arguments: { competencyId: "graph-of-a-function" },
-    });
+    await getProgress(client);
 
     expect(engine.calls).toEqual([
       { principal: ada, competencyId: "graph-of-a-function" },
     ]);
+    // The very principal the host bound, not a copy rebuilt from input.
+    expect(engine.calls[0]?.principal).toBe(ada);
   });
 
   it("returns the engine's progress unchanged, as structured content and JSON text", async () => {
-    const client = await connect({ engine: fakeEngine(), principal: ada });
-
-    const result = await client.callTool({
-      name: "get-progress",
-      arguments: { competencyId: "graph-of-a-function" },
+    const client = await connect({
+      engine: engineWithAdaRecord(),
+      principal: ada,
     });
 
+    const result = await getProgress(client);
+
+    // The SDK client also checks structuredContent against the output schema.
     expect(result.isError).toBeFalsy();
     expect(result.structuredContent).toEqual({
       competencyId: "graph-of-a-function",
@@ -72,13 +76,10 @@ describe("get-progress", () => {
   });
 
   it("refuses without calling the engine when the host bound no principal", async () => {
-    const engine = fakeEngine();
+    const engine = engineWithAdaRecord();
     const client = await connect({ engine });
 
-    const result = await client.callTool({
-      name: "get-progress",
-      arguments: { competencyId: "graph-of-a-function" },
-    });
+    const result = await getProgress(client);
 
     expect(result.isError).toBe(true);
     expect(result.content).toEqual([
@@ -88,10 +89,10 @@ describe("get-progress", () => {
   });
 
   it("is listed as a read-only, closed-world tool with input and output schemas", async () => {
-    const client = await connect({ engine: fakeEngine() });
+    const client = await connect({ engine: engineWithAdaRecord() });
 
     const { tools } = await client.listTools();
-    const tool = tools.find((t) => t.name === "get-progress");
+    const tool = tools.find((tool) => tool.name === "get-progress");
 
     expect(tool?.annotations).toMatchObject({
       readOnlyHint: true,

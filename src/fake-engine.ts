@@ -2,7 +2,7 @@
 // records up and remembers the calls it received, with no learning logic.
 import type { LearningEngine, Principal, Progress } from "./engine.ts";
 
-export type FakeRecord = { principal: Principal; progress: Progress };
+type FakeRecord = { principal: Principal; progress: Progress };
 
 export type FakeEngine = LearningEngine & {
   readonly calls: { principal: Principal; competencyId: string }[];
@@ -15,9 +15,9 @@ export function createFakeEngine(records: FakeRecord[] = []): FakeEngine {
     async getProgress(principal, competencyId) {
       calls.push({ principal, competencyId });
       const record = records.find(
-        (r) =>
-          r.principal.subjectId === principal.subjectId &&
-          r.progress.competencyId === competencyId,
+        (record) =>
+          record.principal.subjectId === principal.subjectId &&
+          record.progress.competencyId === competencyId,
       );
       if (!record) throw new Error(`no progress for ${competencyId}`);
       return record.progress;

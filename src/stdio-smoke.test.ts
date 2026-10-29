@@ -48,6 +48,9 @@ describe("stdio server", () => {
       arguments: { competencyId: "graph-of-a-function" },
     });
     expect(refusal.isError).toBe(true);
+    expect(refusal.content).toEqual([
+      { type: "text", text: "No authenticated principal is available." },
+    ]);
     const pid = transport.pid;
     expect(pid).toBeTypeOf("number");
     expect(networkSockets(pid!)).toEqual([]);
