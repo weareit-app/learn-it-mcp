@@ -28,6 +28,8 @@ A change is done when `pnpm check` passes, its tests cover the behaviour it adds
 
 ## Where to look
 
+- Product scope, read before scoping a new tool or feature: [learn-it-mcp#2](https://github.com/weareit-app/learn-it-mcp/issues/2), the adaptive learning loop for agents. Its engine side is [learn-it#2](https://github.com/weareit-app/learn-it/issues/2), and the integration contract [learn-it#9](https://github.com/weareit-app/learn-it/issues/9).
+- Review rules: `CODING_STANDARDS.md`.
 - Decisions: `docs/architecture/decisions.md`. Dependencies: `docs/architecture/dependencies.md`. CI actions, downloads and their reviews: `docs/architecture/ci-actions.md`.
 - Choosing which skill or flow fits: `.claude/skills/ask-learn-it-mcp/SKILL.md` (`/ask-learn-it-mcp`; Codex: `$ask-learn-it-mcp`). Running skills: `docs/agents/skills.md`.
 - Domain terms and decision records: `docs/agents/domain.md`.
