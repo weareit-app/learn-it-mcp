@@ -13,3 +13,7 @@ Decided when the repository was generated (see its first commit).
 - A tool call never chooses which learner it acts for.
 - `learn-it` is a planned dependency: the architecture intends it, but it is not in the package files yet. Adding it is a recorded integration milestone, once `learn-it` publishes a version to pin.
 - Decisions live in this file; `docs/adr/` is not used, and `tools/decision-records/check-no-adr-folder.mjs` fails if it exists.
+
+## Changes
+
+- 2026-10-28: Issues and specs move from local Markdown under `.scratch/` to GitHub Issues in `weareit-app/learn-it-mcp`, with GitHub's native sub-issues and blocking links. No issues had been filed locally, so nothing migrates. The five default triage labels are created on GitHub.
