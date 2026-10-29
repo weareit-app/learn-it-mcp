@@ -19,3 +19,16 @@ export type Progress = {
 export interface LearningEngine {
   getProgress(principal: Principal, competencyId: string): Promise<Progress>;
 }
+
+/** The failures the engine reports on purpose; anything else is unexpected. */
+export type EngineErrorCode = "unknown-competency";
+
+export class EngineError extends Error {
+  readonly code: EngineErrorCode;
+
+  constructor(code: EngineErrorCode, message: string) {
+    super(message);
+    this.name = "EngineError";
+    this.code = code;
+  }
+}

@@ -1,7 +1,13 @@
 // The MCP server: its tools, independent of any transport.
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import type { LearningEngine, Principal } from "./engine.ts";
+import {
+  EngineError,
+  type EngineErrorCode,
+  type LearningEngine,
+  type Principal,
+  type Progress,
+} from "./engine.ts";
 
 export const SERVER_NAME = "learn-it-mcp";
 
@@ -11,6 +17,21 @@ const progressSchema = z.object({
   status: z.string(),
   updatedAt: z.string(),
 });
+
+// What the client is told for each typed engine error. The engine's own
+// message is never passed on: it may describe the engine's internals.
+const engineErrorMessages: Record<EngineErrorCode, string> = {
+  "unknown-competency": "The learning engine knows no competency with this ID.",
+};
+
+function toolError(code: string, message: string) {
+  return {
+    content: [
+      { type: "text" as const, text: JSON.stringify({ code, message }) },
+    ],
+    isError: true,
+  };
+}
 
 export type ServerOptions = {
   engine: LearningEngine;
@@ -51,7 +72,19 @@ export function createServer({ engine, principal }: ServerOptions): McpServer {
           isError: true,
         };
       }
-      const progress = await engine.getProgress(principal, competencyId);
+      let progress: Progress;
+      try {
+        progress = await engine.getProgress(principal, competencyId);
+      } catch (error) {
+        if (error instanceof EngineError) {
+          return toolError(error.code, engineErrorMessages[error.code]);
+        }
+        // Caught here, not by the SDK, which would echo the message.
+        return toolError(
+          "engine-failure",
+          "The learning engine could not answer.",
+        );
+      }
       return {
         content: [{ type: "text", text: JSON.stringify(progress) }],
         structuredContent: { ...progress },

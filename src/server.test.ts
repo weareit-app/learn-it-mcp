@@ -202,3 +202,72 @@ describe("get-progress", () => {
     });
   });
 });
+
+describe("get-progress engine errors", () => {
+  function errorOf(result: Awaited<ReturnType<typeof getProgress>>) {
+    const [text] = result.content as { type: string; text: string }[];
+    return JSON.parse(text!.text);
+  }
+
+  it("reports an unknown competency with a stable error code", async () => {
+    const client = await connect({
+      engine: engineWithAdaRecord(),
+      principal: ada,
+    });
+
+    const result = await getProgress(client, "no-such-competency");
+
+    expect(result.isError).toBe(true);
+    expect(errorOf(result)).toEqual({
+      code: "unknown-competency",
+      message: "The learning engine knows no competency with this ID.",
+    });
+  });
+
+  it("reports an unexpected engine failure generically, without its message or stack", async () => {
+    const failure = new Error("connection to db-internal-7 refused");
+    const client = await connect({
+      engine: createFakeEngine([], { throws: failure }),
+      principal: ada,
+    });
+
+    const result = await getProgress(client);
+
+    expect(result.isError).toBe(true);
+    expect(errorOf(result)).toEqual({
+      code: "engine-failure",
+      message: "The learning engine could not answer.",
+    });
+    const wire = JSON.stringify(result);
+    expect(wire).not.toContain("db-internal-7");
+    expect(wire).not.toContain(failure.stack!.split("\n")[1]!.trim());
+  });
+
+  it.each([
+    [
+      "an unknown competency",
+      "unknown-competency",
+      engineWithAdaRecord(),
+      "no-such-competency",
+    ],
+    [
+      "an engine failure",
+      "engine-failure",
+      createFakeEngine([], { throws: new Error("boom") }),
+      "graph-of-a-function",
+    ],
+  ])(
+    "returns %s as an error, not as progress",
+    async (_, code, engine, competencyId) => {
+      const client = await connect({ engine, principal: ada });
+
+      const result = await getProgress(client, competencyId);
+
+      // The SDK skips output-schema validation for an error result; were it
+      // applied, the call would fail with an output validation error instead.
+      expect(result.isError).toBe(true);
+      expect(result.structuredContent).toBeUndefined();
+      expect(errorOf(result).code).toBe(code);
+    },
+  );
+});
