@@ -187,8 +187,9 @@ describe("get-progress", () => {
     });
     expect(tool?.inputSchema).toMatchObject({
       type: "object",
-      properties: { competencyId: { type: "string" } },
+      properties: { competencyId: { type: "string", minLength: 1 } },
       required: ["competencyId"],
+      additionalProperties: false,
     });
     expect(tool?.outputSchema).toMatchObject({
       type: "object",

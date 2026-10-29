@@ -6,11 +6,11 @@ import type { LearningEngine, Principal } from "./engine.ts";
 export const SERVER_NAME = "learn-it-mcp";
 
 // The output schema mirrors the placeholder `Progress` shape, field for field.
-const progressShape = {
+const progressSchema = z.object({
   competencyId: z.string(),
   status: z.string(),
   updatedAt: z.string(),
-};
+});
 
 export type ServerOptions = {
   engine: LearningEngine;
@@ -39,7 +39,7 @@ export function createServer({ engine, principal }: ServerOptions): McpServer {
       // Strict: an undeclared field, such as a learner ID, is an error rather
       // than silently dropped.
       inputSchema: z.strictObject({ competencyId: z.string().min(1) }),
-      outputSchema: progressShape,
+      outputSchema: progressSchema,
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
     async ({ competencyId }) => {
